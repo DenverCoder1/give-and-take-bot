@@ -27,7 +27,7 @@ def main():
         """When discord is connected"""
         print(f"{bot.user.name} has connected to Discord!")
         activity = discord.Activity(
-            type=discord.ActivityType.listening, name="slash commands"
+            type=discord.ActivityType.listening, name="#give-and-take"
         )
         await bot.change_presence(activity=activity)
 

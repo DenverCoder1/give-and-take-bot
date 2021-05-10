@@ -5,7 +5,10 @@ load_dotenv()
 
 # Discord config
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "")
-BOT_PREFIX = "!"
+BOT_PREFIX = ">"
 
-# Guild
-GUILD_ID = int(os.getenv("GUILD_ID", ""))
+GUILD_ID = int(os.getenv("GUILD", ""))
+
+GIVE_AND_TAKE_CHANNEL = int(os.getenv("GIVE_AND_TAKE_CHANNEL", ""))
+
+GIVE_AND_TAKE_CHAT_CHANNEL = int(os.getenv("GIVE_AND_TAKE_CHAT_CHANNEL", ""))
