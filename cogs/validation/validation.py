@@ -65,6 +65,34 @@ def validate_sum(message: discord.Message):
         )
 
 
+def validate_plus_and_minus(message: discord.Message):
+    content: str = message.content
+    lines = content.split("\n")
+    has_plus = False
+    has_minus = False
+    for line in lines:
+        match = re.search(r"[^-]+\s*[-]\s*\d+[^+\-]*([+\-])", line)
+        # line doesn't match pattern
+        if not match:
+            continue
+        # group matched plus
+        if match.group(1) == "+":
+            if has_plus:
+                raise ValidationError(f"Two plus signs found.")
+            has_plus = True
+            continue
+        # group matched minus
+        if has_minus:
+            raise ValidationError(f"Two minus signs found.")
+        has_minus = True
+    if not has_plus:
+        if not has_minus:
+            raise ValidationError(f"Plus and minus signs are missing.")
+        raise ValidationError(f"Plus sign is missing.")
+    if not has_minus:
+        raise ValidationError(f"Minus sign is missing.")
+
+
 async def validate_last_message(
     message: discord.Message, channel: discord.TextChannel, chat: discord.TextChannel
 ):
@@ -75,5 +103,6 @@ async def validate_last_message(
     # validate message
     try:
         validate_sum(message)
+        validate_plus_and_minus(message)
     except ValidationError as error:
         await log_problem(message.author, chat, error.message)
