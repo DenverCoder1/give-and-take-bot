@@ -12,7 +12,7 @@ from .validation_error import ValidationError
 # 1: The name of the choice
 # 2: The current number for the choice
 # 3: '+', '-', or None
-line_regex = re.compile(r"(\w[^-]*?)\s*[-]\s*(\d+)[^+\-]*([+\-])?")
+line_regex = re.compile(r"(\w[^\d\n☠️:<]*)\s*[-]\s*(\d*)[^+\-\n]*([+\-])?")
 
 choices = [
     "Anchovies",
@@ -71,7 +71,10 @@ def validate_sum(message: discord.Message) -> int:
         match = line_regex.search(line)
         if not match:
             continue
-        total += int(match.group(2))
+        try:
+            total += int(match.group(2))
+        except ValueError:
+            pass
         count += 1
     expected_total = len(choices) * 5
     if total != expected_total:
@@ -125,7 +128,10 @@ def get_listed_choices(message: discord.Message) -> Dict[str, Tuple[int, str]]:
         # check fuzz
         if not choice or choice[1] < 50:
             raise ValidationError(f"Didn't recognize the item '{choice_input}'.")
-        listed[choice[0]] = (int(match.group(2)), match.group(3))
+        # add to dict
+        num = int(match.group(2)) if match.group(2) and match.group(2).isdigit() else 0
+        sign = match.group(3)
+        listed[choice[0]] = (num, sign)
     return listed
 
 
@@ -145,7 +151,6 @@ def validate_choices(
             raise ValidationError(f"Expected '{item}' but it is missing.")
         # item is missing but reached 0
         if item not in new_list:
-            death = item
             continue
         # check valid numbers
         new_num, sign = new_list[item]
@@ -155,6 +160,9 @@ def validate_choices(
             raise ValidationError(f"{item} should be decremented to {prev_num - 1}.")
         if sign is None and new_num != prev_num:
             raise ValidationError(f"{item} should still have the value {prev_num}.")
+        # consider dead if new number is 0
+        if not death and new_num == 0 and prev_num > 0:
+            death = item
     return death
 
 
@@ -173,14 +181,16 @@ async def validate_last_message(
         validate_plus_and_minus(message)
         death = validate_choices(previous_message, message)
         count = validate_sum(message)
-        if death:
-            await log_death(chat, death, count + 1)
         # success
         try:
             await message.remove_reaction("🚫", bot.user)
         except Exception:
             pass
         await message.add_reaction("✅")
+        # item was killed
+        if death:
+            await log_death(chat, death, count)
+            await message.add_reaction("☠️")
     except ValidationError as error:
         # failure
         await message.add_reaction("🚫")
