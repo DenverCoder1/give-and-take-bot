@@ -1,8 +1,15 @@
-from cogs.validation.logging import log_problem
+from cogs.validation.logging import log_death, log_problem
 from .validation_error import ValidationError
 import re
-from typing import Annotated, List
+from typing import Annotated, Dict, List, Optional, Set, Tuple
 import discord
+from fuzzywuzzy import process
+
+# Groups:
+# 1: The name of the choice
+# 2: The current number for the choice
+# 3: '+', '-', or None
+line_regex = re.compile(r"(\w[^-]*?)\s*[-]\s*(\d+)[^+\-]*([+\-])?")
 
 choices = [
     "Anchovies",
@@ -43,18 +50,19 @@ async def get_last_two_messages(
     messages: List[discord.Message] = []
     async for message in channel.history(limit=20):
         content: str = message.content
-        if re.search(r"[^-]+\s*[-]\s*\d+", content):
+        if line_regex.search(content):
             messages += [message]
             if len(messages) == 2:
                 return messages
 
 
 def validate_sum(message: discord.Message):
+    """Throws ValidationError if the sum of rankings is not the expected amount"""
     content: str = message.content
     lines = content.split("\n")
     total = 0
     for line in lines:
-        match = re.search(r"([^-]+)\s*[-]\s*(\d+)", line)
+        match = line_regex.search(line)
         if not match:
             continue
         total += int(match.group(2))
@@ -66,17 +74,18 @@ def validate_sum(message: discord.Message):
 
 
 def validate_plus_and_minus(message: discord.Message):
+    """Throws ValidationError if there are too many or too few pluses/minuses"""
     content: str = message.content
     lines = content.split("\n")
     has_plus = False
     has_minus = False
     for line in lines:
-        match = re.search(r"[^-]+\s*[-]\s*\d+[^+\-]*([+\-])", line)
+        match = line_regex.search(line)
         # line doesn't match pattern
-        if not match:
+        if not match or match.group(3) is None:
             continue
         # group matched plus
-        if match.group(1) == "+":
+        if match.group(3) == "+":
             if has_plus:
                 raise ValidationError(f"Two plus signs found.")
             has_plus = True
@@ -93,6 +102,54 @@ def validate_plus_and_minus(message: discord.Message):
         raise ValidationError(f"Minus sign is missing.")
 
 
+def get_listed_choices(message: discord.Message) -> Dict[str, Tuple[int, str]]:
+    content: str = message.content
+    lines = content.split("\n")
+    listed: Dict[str, Tuple[int, str]] = {}
+    for line in lines:
+        match = line_regex.search(line)
+        # line doesn't match pattern
+        if not match:
+            continue
+        choice_input = match.group(1)
+        # find choice in list
+        choice = process.extractOne(choice_input, choices)
+        # check fuzz
+        if not choice or choice[1] < 50:
+            raise ValidationError(f"Didn't recognize the item '{choice_input}'.")
+        listed[choice[0]] = (int(match.group(2)), match.group(3))
+    return listed
+
+
+def validate_choices(
+    previous: discord.Message, message: discord.Message
+) -> Optional[str]:
+    """Check that choices are consistent with previous message
+    Returns item that was killed if an item was killed this turn
+    """
+    death = None
+    prev_list = get_listed_choices(previous)
+    new_list = get_listed_choices(message)
+    for item in prev_list.keys():
+        prev_num = prev_list[item][0]
+        # missing item
+        if item not in new_list and prev_num > 0:
+            raise ValidationError(f"Expected '{item}' but it is missing.")
+        # item is missing but reached 0
+        if item not in new_list:
+            death = item
+            continue
+        # check valid numbers
+        new_num, sign = new_list[item]
+        if sign == "+" and new_num != prev_num + 1:
+            raise ValidationError(f"{item} should be incremented to {prev_num + 1}.")
+        if sign == "-" and new_num != prev_num - 1 and prev_num > 0:
+            raise ValidationError(f"{item} should be decremented to {prev_num - 1}.")
+        if sign is None and new_num != prev_num:
+            raise ValidationError(f"{item} should still have the value {prev_num}.")
+    return death
+
+
 async def validate_last_message(
     message: discord.Message, channel: discord.TextChannel, chat: discord.TextChannel
 ):
@@ -102,7 +159,10 @@ async def validate_last_message(
         return
     # validate message
     try:
-        validate_sum(message)
         validate_plus_and_minus(message)
+        death = validate_choices(previous_message, message)
+        validate_sum(message)
+        if death:
+            await log_death(chat, death)
     except ValidationError as error:
         await log_problem(message.author, chat, error.message)
