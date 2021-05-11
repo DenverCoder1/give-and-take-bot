@@ -2,7 +2,7 @@ import discord
 from typing import Optional, Union
 from discord.embeds import EmptyEmbed, _EmptyEmbed
 
-GINGER_COLOUR = discord.Color(int("B06500", 16))
+PURPLE = discord.Color(int("EDD1EF", 16))
 
 
 def __trim(text: str, limit: int) -> str:
@@ -25,7 +25,7 @@ def build_embed(
     image: Optional[str] = None,
     thumbnail: Optional[str] = None,
     url: Union[str, _EmptyEmbed] = EmptyEmbed,
-    colour: discord.Colour = GINGER_COLOUR,
+    colour: discord.Colour = PURPLE,
 ) -> discord.Embed:
     """Embed a message and an optional description, footer, and url"""
     # create the embed

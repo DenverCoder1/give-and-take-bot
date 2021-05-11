@@ -14,7 +14,7 @@ class Validation(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         """When bot is ready"""
-        # get scoreboard channel object
+        # get give and take channel objects
         self.__channel = self.__bot.get_channel(config.GIVE_AND_TAKE_CHANNEL)
         self.__chat = self.__bot.get_channel(config.GIVE_AND_TAKE_CHAT_CHANNEL)
         # check that channel exists
