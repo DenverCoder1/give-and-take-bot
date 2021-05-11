@@ -56,21 +56,26 @@ async def get_last_two_messages(
                 return messages
 
 
-def validate_sum(message: discord.Message):
-    """Throws ValidationError if the sum of rankings is not the expected amount"""
+def validate_sum(message: discord.Message) -> int:
+    """Throws ValidationError if the sum of rankings is not the expected amount
+    Returns the number of ingredients in the list
+    """
     content: str = message.content
     lines = content.split("\n")
     total = 0
+    count = 0
     for line in lines:
         match = line_regex.search(line)
         if not match:
             continue
         total += int(match.group(2))
+        count += 1
     expected_total = len(choices) * 5
     if total != expected_total:
         raise ValidationError(
             f"Expected sum of all rankings to be {expected_total}, but got {total} instead.",
         )
+    return count
 
 
 def validate_plus_and_minus(message: discord.Message):
@@ -161,8 +166,8 @@ async def validate_last_message(
     try:
         validate_plus_and_minus(message)
         death = validate_choices(previous_message, message)
-        validate_sum(message)
+        count = validate_sum(message)
         if death:
-            await log_death(chat, death)
+            await log_death(chat, death, count + 1)
     except ValidationError as error:
         await log_problem(message.author, chat, error.message)
