@@ -2,7 +2,7 @@ import config
 import discord
 from discord.ext import commands
 
-from .validation import get_last_two_messages, validate_last_message
+from .validation import validate_last_message
 
 
 class Validation(commands.Cog):
@@ -26,14 +26,14 @@ class Validation(commands.Cog):
         """When a message is received in the channel"""
         if message.channel != self.__channel:
             return
-        await validate_last_message(message, self.__channel, self.__chat)
+        await validate_last_message(message, self.__channel, self.__chat, self.__bot)
 
     @commands.Cog.listener()
     async def on_message_edit(self, _, message: discord.Message):
         """When last message is edited in the channel"""
         if message.channel != self.__channel:
             return
-        await validate_last_message(message, self.__channel, self.__chat)
+        await validate_last_message(message, self.__channel, self.__chat, self.__bot)
 
 
 def setup(bot):
