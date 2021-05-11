@@ -47,8 +47,7 @@ class Validation(commands.Cog):
     async def setkilled(self, ctx: commands.Context):
         """Set the killed list that is pinned by the bot
         ```
-        >setkilled 15.) Mushrooms
-        26.) Baby Corn
+        >setkilled 26.) Baby Corn
         27.) Ground Beef
         28.) Shrimp
         ```
