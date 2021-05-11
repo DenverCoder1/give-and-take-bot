@@ -1,9 +1,12 @@
-from cogs.validation.logging import log_death, log_problem
-from .validation_error import ValidationError
 import re
-from typing import Annotated, Dict, List, Optional, Set, Tuple
+from typing import Annotated, Dict, List, Optional, Tuple
+
 import discord
+from cogs.validation.logging import log_death, log_problem
+from discord.ext import commands
 from fuzzywuzzy import process
+
+from .validation_error import ValidationError
 
 # Groups:
 # 1: The name of the choice
@@ -156,7 +159,10 @@ def validate_choices(
 
 
 async def validate_last_message(
-    message: discord.Message, channel: discord.TextChannel, chat: discord.TextChannel
+    message: discord.Message,
+    channel: discord.TextChannel,
+    chat: discord.TextChannel,
+    bot: commands.Bot,
 ):
     [last_message, previous_message] = await get_last_two_messages(channel)
     # skip validation if message does not match pattern
@@ -169,5 +175,13 @@ async def validate_last_message(
         count = validate_sum(message)
         if death:
             await log_death(chat, death, count + 1)
+        # success
+        try:
+            await message.remove_reaction("🚫", bot.user)
+        except Exception:
+            pass
+        await message.add_reaction("✅")
     except ValidationError as error:
+        # failure
+        await message.add_reaction("🚫")
         await log_problem(message.author, chat, error.message)
