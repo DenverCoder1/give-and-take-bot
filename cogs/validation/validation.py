@@ -14,6 +14,8 @@ from .validation_error import ValidationError
 # 3: '+', '-', or None
 line_regex = re.compile(r"(\w[^\d\n☠️:<]*)\s*[-]\s*(\d*)[^+\-\n]*([+\-])?")
 
+killed_list_placeholder = "Killed list will appear here"
+
 choices = [
     "Anchovies",
     "Baby Corn",
@@ -44,6 +46,23 @@ choices = [
     "Tofu",
     "Tomatoes",
 ]
+
+
+async def get_killed_list(chat: discord.TextChannel) -> discord.Message:
+    pins: List[discord.Message] = await chat.pins()
+    # start from most recent pin
+    pins.reverse()
+    for message in pins:
+        content: str = message.content
+        if message.author.bot and re.search(r"^\d+\.\) \w+", content):
+            return message
+    # no message found
+    message: discord.Message = await chat.send(killed_list_placeholder)
+    try:
+        await message.pin()
+    except Exception:
+        pass
+    return message
 
 
 async def get_last_two_messages(
@@ -170,6 +189,7 @@ async def validate_last_message(
     message: discord.Message,
     channel: discord.TextChannel,
     chat: discord.TextChannel,
+    killed_list: discord.Message,
     bot: commands.Bot,
 ):
     [last_message, previous_message] = await get_last_two_messages(channel)
@@ -179,7 +199,7 @@ async def validate_last_message(
     # validate message
     try:
         validate_plus_and_minus(message)
-        death = validate_choices(previous_message, message)
+        death_item = validate_choices(previous_message, message)
         count = validate_sum(message)
         # success
         try:
@@ -187,10 +207,12 @@ async def validate_last_message(
         except Exception:
             pass
         await message.add_reaction("✅")
-        # item was killed
-        if death:
-            await log_death(chat, death, count)
+        # item was killed (and it's not already on the list)
+        killed_str = killed_list.content.replace(killed_list_placeholder, "")
+        if death_item and not killed_str.startswith(f"{count}.)"):
+            await log_death(chat, death_item, count)
             await message.add_reaction("☠️")
+            await killed_list.edit(content=f"{count}.) {death_item}\n{killed_str}")
     except ValidationError as error:
         # failure
         await message.add_reaction("🚫")
