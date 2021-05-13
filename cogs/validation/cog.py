@@ -3,7 +3,11 @@ import config
 import discord
 from discord.ext import commands
 
-from .validation import get_killed_list, validate_last_message
+from .validation import (
+    get_killed_list,
+    validate_message,
+    message_matches_pattern,
+)
 
 
 class Validation(commands.Cog):
@@ -29,25 +33,25 @@ class Validation(commands.Cog):
         """When a message is received in the channel"""
         if message.channel != self.__channel:
             return
-        await validate_last_message(
-            message, self.__channel, self.__chat, self.__killed_list, self.__bot
-        )
+        await validate_message(message, self.__chat, self.__killed_list, self.__bot)
 
     @commands.Cog.listener()
     async def on_message_edit(self, _, message: discord.Message):
         """When last message is edited in the channel"""
         if message.channel != self.__channel:
             return
-        await validate_last_message(
-            message, self.__channel, self.__chat, self.__killed_list, self.__bot
-        )
+        # skip validation if message does not match pattern
+        if not message_matches_pattern(message):
+            return
+        await validate_message(message, self.__chat, self.__killed_list, self.__bot)
 
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def setkilled(self, ctx: commands.Context):
         """Set the killed list that is pinned by the bot
         ```
-        >setkilled 26.) Baby Corn
+        >setkilled
+        26.) Baby Corn
         27.) Ground Beef
         28.) Shrimp
         ```

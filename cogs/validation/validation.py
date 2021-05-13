@@ -65,17 +65,18 @@ async def get_killed_list(chat: discord.TextChannel) -> discord.Message:
     return message
 
 
-async def get_last_two_messages(
-    channel: discord.TextChannel,
-) -> Annotated[List[discord.Message], 2]:
-    """Returns last message and second to last message that match pattern"""
-    messages: List[discord.Message] = []
-    async for message in channel.history(limit=20):
-        content: str = message.content
-        if line_regex.search(content):
-            messages += [message]
-            if len(messages) == 2:
-                return messages
+def message_matches_pattern(message: discord.Message) -> bool:
+    content: str = message.content
+    return line_regex.search(content) is not None
+
+
+async def get_message_before(
+    before: Optional[discord.Message] = None,
+) -> discord.Message:
+    """Returns last message before the given message that matches pattern"""
+    async for message in before.channel.history(before=before):
+        if message_matches_pattern(message):
+            return message
 
 
 def validate_sum(message: discord.Message) -> int:
@@ -185,28 +186,33 @@ def validate_choices(
     return death
 
 
-async def validate_last_message(
+async def react_with_validation(
     message: discord.Message,
-    channel: discord.TextChannel,
+    bot: commands.Bot,
+    valid: bool,
+):
+    emoji_add, emoji_remove = ("✅", "🚫") if valid else ("🚫", "✅")
+    try:
+        await message.remove_reaction(emoji_remove, bot.user)
+    except Exception:
+        pass
+    await message.add_reaction(emoji_add)
+
+
+async def validate_message(
+    message: discord.Message,
     chat: discord.TextChannel,
     killed_list: discord.Message,
     bot: commands.Bot,
 ):
-    [last_message, previous_message] = await get_last_two_messages(channel)
-    # skip validation if message does not match pattern
-    if message != last_message:
-        return
+    previous_message = await get_message_before(message)
     # validate message
     try:
         validate_plus_and_minus(message)
         death_item = validate_choices(previous_message, message)
         count = validate_sum(message)
         # success
-        try:
-            await message.remove_reaction("🚫", bot.user)
-        except Exception:
-            pass
-        await message.add_reaction("✅")
+        await react_with_validation(message, bot, True)
         # item was killed (and it's not already on the list)
         killed_str = killed_list.content.replace(killed_list_placeholder, "")
         if death_item and not killed_str.startswith(f"{count}.)"):
@@ -215,5 +221,5 @@ async def validate_last_message(
             await killed_list.edit(content=f"{count}.) {death_item}\n{killed_str}")
     except ValidationError as error:
         # failure
-        await message.add_reaction("🚫")
+        await react_with_validation(message, bot, False)
         await log_problem(message.author, chat, error.message)
