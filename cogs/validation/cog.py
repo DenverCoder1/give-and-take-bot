@@ -33,6 +33,9 @@ class Validation(commands.Cog):
         """When a message is received in the channel"""
         if message.channel != self.__channel:
             return
+        # skip validation if message does not match pattern
+        if not message_matches_pattern(message):
+            return
         await validate_message(message, self.__chat, self.__killed_list, self.__bot)
 
     @commands.Cog.listener()
