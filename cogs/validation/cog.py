@@ -62,7 +62,7 @@ class Validation(commands.Cog):
         # make sure it's the same guild as the command
         if ctx.message.guild != self.__killed_list.guild:
             return
-        # remove comman part
+        # remove command part
         new_content = ctx.message.content.replace(ctx.prefix + ctx.invoked_with, "")
         # update killed list
         await self.__killed_list.edit(content=new_content.strip())
