@@ -120,7 +120,7 @@ def get_listed_choices(message: discord.Message) -> Dict[str, Tuple[int, str]]:
     for line in lines:
         match = line_regex.search(line)
         # line doesn't match pattern
-        if not match:
+        if not match or not (match.group(2) or match.group(3)):
             continue
         choice_input = match.group(1)
         # find choice in list
