@@ -79,29 +79,9 @@ async def get_message_before(
             return message
 
 
-def validate_sum(message: discord.Message) -> int:
-    """Throws ValidationError if the sum of rankings is not the expected amount
-    Returns the number of ingredients in the list
-    """
-    content: str = message.content
-    lines = content.split("\n")
-    total = 0
-    count = 0
-    for line in lines:
-        match = line_regex.search(line)
-        if not match:
-            continue
-        try:
-            total += int(match.group(2))
-        except ValueError:
-            pass
-        count += 1
-    expected_total = len(choices) * 5
-    if total != expected_total:
-        raise ValidationError(
-            f"Expected sum of all rankings to be {expected_total}, but got {total} instead.",
-        )
-    return count
+def count_remaining(message: discord.Message) -> int:
+    """Returns the number of ingredients in the list"""
+    return len(message.content.split("\n"))
 
 
 def validate_plus_and_minus(message: discord.Message):
@@ -210,7 +190,7 @@ async def validate_message(
     try:
         validate_plus_and_minus(message)
         death_item = validate_choices(previous_message, message)
-        count = validate_sum(message)
+        count = count_remaining(message)
         # success
         await react_with_validation(message, bot, True)
         # item was killed (and it's not already on the list)
