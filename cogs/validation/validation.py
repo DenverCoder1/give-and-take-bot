@@ -12,7 +12,7 @@ from .validation_error import ValidationError
 # 1: The name of the choice
 # 2: The current number for the choice
 # 3: '+', '-', or None
-line_regex = re.compile(r"(\w[^\d\n☠️:<]*)\s*[-]\s*(\d*)[^+\-\n]*([+\-])?")
+line_regex = re.compile(r"(\w[^\d\n☠️:<]*)\s*[-]\s*(\d{0,3})\b[^+\-\n\d]*([+\-])?")
 
 killed_list_placeholder = "Killed list will appear here"
 
@@ -120,7 +120,7 @@ def get_listed_choices(message: discord.Message) -> Dict[str, Tuple[int, str]]:
     for line in lines:
         match = line_regex.search(line)
         # line doesn't match pattern
-        if not match:
+        if not match or not (match.group(2) or match.group(3)):
             continue
         choice_input = match.group(1)
         # find choice in list
