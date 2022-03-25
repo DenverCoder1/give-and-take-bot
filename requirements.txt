@@ -1,5 +1,5 @@
 discord.py==1.7.3
 python-dotenv==0.20.0
-discord-py-slash-command==3.0.1
+discord-py-slash-command==3.0.3
 fuzzywuzzy==0.18.0
 python-Levenshtein==0.12.2
